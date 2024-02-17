@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gráfico de 90 años en semanas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Estilos para los textos*/
+      h1,
+      p {
+        font-family: "Roboto", sans-serif;
+        font-weight: 500;
+        font-style: normal;
+        text-align: center;
+      }
+
+      /* Estilos para la cuadrícula */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(52, 1fr); /* 52 semanas en un año */
+        gap: 2px; /* Espacio entre las casillas */
+      }
+      .box {
+        width: 20px;
+        height: 20px;
+        border: 1px solid #999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+      }
+      .used {
+        background-color: #0074d9; /* Azul para semanas gastadas */
+      }
+      /* Estilos para el modo noche */
+      body.dark-mode {
+        background-color: #333;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <button onclick="toggleDarkMode()">🌙</button>
+    <h1>90 años de vida en semanas</h1>
+
+    <div class="grid" id="weekGrid"></div>
+
+    <section>
+      <p>
+        Tienes actualmente <span id="ageInWeeks"></span>de vida (<span
+          id="ageInYears"
+        ></span>).
+      </p>
+      <p>
+        Te quedan <span id="remainingWeeks"></span> (<span
+          id="remainingYears"
+        ></span>) por vivir.
+      </p>
+    </section>
+
+    <script>
+      // Calcular semanas desde el nacimiento hasta hoy
+      const birthDate = new Date("1999-05-05");
+      const today = new Date();
+      const millisecondsPerWeek = 7 * 24 * 60 * 60 * 1000;
+      const weeksPassed = Math.floor((today - birthDate) / millisecondsPerWeek);
+      const totalSemanas = 90 * 52;
+
+      // Crear las casillas para 90 años
+      const gridContainer = document.getElementById("weekGrid");
+      for (let i = 0; i < totalSemanas; i++) {
+        const box = document.createElement("div");
+        box.classList.add("box");
+        if (i < weeksPassed) {
+          box.classList.add("used"); // Marcar semanas gastadas
+        }
+        box.textContent = `${i + 1}`; // Texto con el número de semana
+        gridContainer.appendChild(box);
+      }
+
+      // Mostrar la edad actual en semanas y años
+      document.getElementById(
+        "ageInWeeks"
+      ).textContent = `${weeksPassed} semanas`;
+      document.getElementById("ageInYears").textContent = `${Math.floor(
+        weeksPassed / 52
+      )} años`;
+
+      // Calcular semanas restantes y años restantes
+      const remainingWeeks = totalSemanas - weeksPassed;
+      document.getElementById(
+        "remainingWeeks"
+      ).textContent = `${remainingWeeks} semanas`;
+      document.getElementById("remainingYears").textContent = `${Math.floor(
+        remainingWeeks / 52
+      )} años`;
+
+      // Función para cambiar a modo noche
+      function toggleDarkMode() {
+        document.body.classList.toggle("dark-mode");
+      }
+    </script>
+  </body>
+</html>
