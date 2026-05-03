@@ -1,95 +1,144 @@
 <script>
-  const birthDate = new Date("1999-05-05");
-  const today = new Date();
-  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-  const weeksPassed = Math.floor((today - birthDate) / msPerWeek);
-  const totalSemanas = 90 * 52;
-  const gridContainer = document.getElementById("weekGrid");
-
-  // Cargar notas desde localStorage
-  const STORAGE_KEY = "lifesWeeks_notes";
-  function loadNotes() {
+  (function () {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    } catch (e) {
-      return {};
+      const birthDate = new Date("1999-05-05");
+      const today = new Date();
+      const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+      const weeksPassed = Math.floor((today - birthDate) / msPerWeek);
+      const totalSemanas = 90 * 52;
+      const gridContainer = document.getElementById("weekGrid");
+      if (!gridContainer) {
+        console.error("No se encontró #weekGrid en el DOM.");
+        return;
+      }
+
+      // Storage helpers
+      const STORAGE_KEY = "lifesWeeks_notes";
+      function loadNotes() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch (e) {
+          console.warn("JSON de notas corrupto. Se reiniciará.", e);
+          localStorage.removeItem(STORAGE_KEY);
+          return {};
+        }
+      }
+      function saveNotes(notes) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+        } catch (e) {
+          console.error("Error guardando notas en localStorage", e);
+        }
+      }
+
+      function weekStartDate(birthDate, weekNumber) {
+        const d = new Date(birthDate);
+        d.setDate(d.getDate() + (weekNumber - 1) * 7);
+        return d;
+      }
+      function weekYear(birthDate, weekNumber) {
+        return weekStartDate(birthDate, weekNumber).getFullYear();
+      }
+
+      const notes = loadNotes();
+
+      // Crear modal (mejorado con estilos y accesibilidad)
+      const modal = document.createElement("div");
+      modal.id = "lw-modal";
+      modal.style.cssText = "position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:9999;";
+      modal.innerHTML = `
+        <div role="dialog" aria-modal="true" style="background:#fff;color:#000;padding:16px;border-radius:8px;max-width:520px;width:92%;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+          <h3 id="modalTitle" style="margin:0 0 8px 0;"></h3>
+          <textarea id="noteText" style="width:100%;height:120px;padding:8px;border:1px solid #ccc;border-radius:6px;"></textarea>
+          <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end;">
+            <button id="deleteNote" style="background:#e74c3c;color:#fff;border:none;padding:8px 12px;border-radius:6px;">Eliminar</button>
+            <button id="closeModal" style="background:#95a5a6;color:#fff;border:none;padding:8px 12px;border-radius:6px;">Cerrar</button>
+            <button id="saveNote" style="background:#2ecc71;color:#fff;border:none;padding:8px 12px;border-radius:6px;">Guardar</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+
+      // Render grid
+      gridContainer.innerHTML = ""; // limpiar si se recarga script
+      for (let i = 0; i < totalSemanas; i++) {
+        const weekNum = i + 1;
+        const box = document.createElement("div");
+        box.className = "box";
+        if (i < weeksPassed) box.classList.add("used");
+        if (notes[`w-${weekNum}`]) box.style.boxShadow = "inset 0 0 0 3px #ffcc00";
+        box.textContent = weekNum;
+        box.dataset.week = weekNum;
+        box.tabIndex = 0;
+        box.setAttribute("role", "button");
+        box.addEventListener("click", () => openModal(weekNum));
+        box.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") openModal(weekNum); });
+        gridContainer.appendChild(box);
+      }
+
+      // Modal handlers
+      const modalTitle = modal.querySelector("#modalTitle");
+      const noteText = modal.querySelector("#noteText");
+      const saveBtn = modal.querySelector("#saveNote");
+      const closeBtn = modal.querySelector("#closeModal");
+      const deleteBtn = modal.querySelector("#deleteNote");
+      let currentWeek = null;
+
+      function openModal(week) {
+        currentWeek = week;
+        const start = weekStartDate(birthDate, week);
+        modalTitle.textContent = `Semana ${week} — inicio ${start.toLocaleDateString()} — año ${weekYear(birthDate, week)}`;
+        noteText.value = notes[`w-${week}`]?.text || "";
+        modal.style.display = "flex";
+        noteText.focus();
+      }
+
+      function closeModal() {
+        modal.style.display = "none";
+        currentWeek = null;
+      }
+
+      saveBtn.addEventListener("click", () => {
+        if (!currentWeek) return;
+        notes[`w-${currentWeek}`] = {
+          text: noteText.value,
+          startDate: weekStartDate(birthDate, currentWeek).toISOString(),
+          year: weekYear(birthDate, currentWeek),
+          updatedAt: new Date().toISOString()
+        };
+        saveNotes(notes);
+        // actualizar marcador visual sin recargar
+        const box = gridContainer.querySelector(`[data-week="${currentWeek}"]`);
+        if (box) box.style.boxShadow = "inset 0 0 0 3px #ffcc00";
+        closeModal();
+      });
+
+      deleteBtn.addEventListener("click", () => {
+        if (!currentWeek) return;
+        delete notes[`w-${currentWeek}`];
+        saveNotes(notes);
+        const box = gridContainer.querySelector(`[data-week="${currentWeek}"]`);
+        if (box) box.style.boxShadow = "";
+        closeModal();
+      });
+
+      closeBtn.addEventListener("click", closeModal);
+      modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+
+      // Mostrar métricas (seguras)
+      const ageWeeksEl = document.getElementById("ageInWeeks");
+      const ageYearsEl = document.getElementById("ageInYears");
+      const remainingWeeksEl = document.getElementById("remainingWeeks");
+      const remainingYearsEl = document.getElementById("remainingYears");
+      if (ageWeeksEl) ageWeeksEl.textContent = `${weeksPassed} semanas`;
+      if (ageYearsEl) ageYearsEl.textContent = `${Math.floor(weeksPassed / 52)} años`;
+      const remainingWeeks = totalSemanas - weeksPassed;
+      if (remainingWeeksEl) remainingWeeksEl.textContent = `${remainingWeeks} semanas`;
+      if (remainingYearsEl) remainingYearsEl.textContent = `${Math.floor(remainingWeeks / 52)} años`;
+
+      console.log("Lifes-weeks: grid renderizado correctamente.");
+    } catch (err) {
+      console.error("Error en el script de lifes-weeks:", err);
     }
-  }
-  function saveNotes(notes) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-  }
-
-  // Fecha de inicio de la semana y año
-  function weekStartDate(birthDate, weekNumber) {
-    const d = new Date(birthDate);
-    d.setDate(d.getDate() + (weekNumber - 1) * 7);
-    return d;
-  }
-  function weekYear(birthDate, weekNumber) {
-    return weekStartDate(birthDate, weekNumber).getFullYear();
-  }
-
-  // Crear modal simple
-  const modal = document.createElement("div");
-  modal.style = "position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);";
-  modal.innerHTML = `
-    <div style="background:#fff;padding:16px;border-radius:8px;max-width:480px;width:90%;">
-      <h3 id="modalTitle"></h3>
-      <textarea id="noteText" style="width:100%;height:120px"></textarea>
-      <div style="margin-top:8px;text-align:right;">
-        <button id="deleteNote">Eliminar</button>
-        <button id="closeModal">Cerrar</button>
-        <button id="saveNote">Guardar</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-
-  const notes = loadNotes();
-
-  // Render grid
-  for (let i = 0; i < totalSemanas; i++) {
-    const weekNum = i + 1;
-    const box = document.createElement("div");
-    box.className = "box";
-    if (i < weeksPassed) box.classList.add("used");
-    if (notes[`w-${weekNum}`]) box.style.boxShadow = "inset 0 0 0 3px #ffcc00";
-    box.textContent = weekNum;
-    box.dataset.week = weekNum;
-    box.addEventListener("click", () => openModal(weekNum));
-    gridContainer.appendChild(box);
-  }
-
-  // Modal handlers
-  const modalTitle = modal.querySelector("#modalTitle");
-  const noteText = modal.querySelector("#noteText");
-  const saveBtn = modal.querySelector("#saveNote");
-  const closeBtn = modal.querySelector("#closeModal");
-  const deleteBtn = modal.querySelector("#deleteNote");
-  let currentWeek = null;
-
-  function openModal(week) {
-    currentWeek = week;
-    const start = weekStartDate(birthDate, week);
-    modalTitle.textContent = `Semana ${week} — inicio ${start.toLocaleDateString()} — año ${weekYear(birthDate, week)}`;
-    noteText.value = notes[`w-${week}`]?.text || "";
-    modal.style.display = "flex";
-  }
-  saveBtn.addEventListener("click", () => {
-    notes[`w-${currentWeek}`] = { text: noteText.value, startDate: weekStartDate(birthDate, currentWeek).toISOString(), year: weekYear(birthDate, currentWeek) };
-    saveNotes(notes);
-    location.reload(); // simple refresh to update markers
-  });
-  deleteBtn.addEventListener("click", () => {
-    delete notes[`w-${currentWeek}`];
-    saveNotes(notes);
-    location.reload();
-  });
-  closeBtn.addEventListener("click", () => modal.style.display = "none");
-
-  // Mostrar métricas
-  document.getElementById("ageInWeeks").textContent = `${weeksPassed} semanas`;
-  document.getElementById("ageInYears").textContent = `${Math.floor(weeksPassed / 52)} años`;
-  const remainingWeeks = totalSemanas - weeksPassed;
-  document.getElementById("remainingWeeks").textContent = `${remainingWeeks} semanas`;
-  document.getElementById("remainingYears").textContent = `${Math.floor(remainingWeeks / 52)} años`;
+  })();
 </script>
