@@ -1,111 +1,95 @@
-<!DOCTYPE html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gráfico de 90 años en semanas</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      /* Estilos para los textos*/
-      h1,
-      p {
-        font-family: "Roboto", sans-serif;
-        font-weight: 500;
-        font-style: normal;
-        text-align: center;
-      }
+<script>
+  const birthDate = new Date("1999-05-05");
+  const today = new Date();
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const weeksPassed = Math.floor((today - birthDate) / msPerWeek);
+  const totalSemanas = 90 * 52;
+  const gridContainer = document.getElementById("weekGrid");
 
-      /* Estilos para la cuadrícula */
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(52, 1fr); /* 52 semanas en un año */
-        gap: 2px; /* Espacio entre las casillas */
-      }
-      .box {
-        width: 20px;
-        height: 20px;
-        border: 1px solid #999;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-      }
-      .used {
-        background-color: #0074d9; /* Azul para semanas gastadas */
-      }
-      /* Estilos para el modo noche */
-      body.dark-mode {
-        background-color: #333;
-        color: #fff;
-      }
-    </style>
-  </head>
-  <body>
-    <button onclick="toggleDarkMode()">🌙</button>
-    <h1>90 años de vida en semanas</h1>
+  // Cargar notas desde localStorage
+  const STORAGE_KEY = "lifesWeeks_notes";
+  function loadNotes() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveNotes(notes) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+  }
 
-    <div class="grid" id="weekGrid"></div>
+  // Fecha de inicio de la semana y año
+  function weekStartDate(birthDate, weekNumber) {
+    const d = new Date(birthDate);
+    d.setDate(d.getDate() + (weekNumber - 1) * 7);
+    return d;
+  }
+  function weekYear(birthDate, weekNumber) {
+    return weekStartDate(birthDate, weekNumber).getFullYear();
+  }
 
-    <section>
-      <p>
-        Tienes actualmente <span id="ageInWeeks"></span> de vida (<span
-          id="ageInYears"
-        ></span>).
-      </p>
-      <p>
-        Te quedan <span id="remainingWeeks"></span> (<span
-          id="remainingYears"
-        ></span>) por vivir.
-      </p>
-    </section>
+  // Crear modal simple
+  const modal = document.createElement("div");
+  modal.style = "position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);";
+  modal.innerHTML = `
+    <div style="background:#fff;padding:16px;border-radius:8px;max-width:480px;width:90%;">
+      <h3 id="modalTitle"></h3>
+      <textarea id="noteText" style="width:100%;height:120px"></textarea>
+      <div style="margin-top:8px;text-align:right;">
+        <button id="deleteNote">Eliminar</button>
+        <button id="closeModal">Cerrar</button>
+        <button id="saveNote">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 
-    <script>
-      // Calcular semanas desde el nacimiento hasta hoy
-      const birthDate = new Date("1999-05-05");
-      const today = new Date();
-      const millisecondsPerWeek = 7 * 24 * 60 * 60 * 1000;
-      const weeksPassed = Math.floor((today - birthDate) / millisecondsPerWeek);
-      const totalSemanas = 90 * 52;
+  const notes = loadNotes();
 
-      // Crear las casillas para 90 años
-      const gridContainer = document.getElementById("weekGrid");
-      for (let i = 0; i < totalSemanas; i++) {
-        const box = document.createElement("div");
-        box.classList.add("box");
-        if (i < weeksPassed) {
-          box.classList.add("used"); // Marcar semanas gastadas
-        }
-        box.textContent = `${i + 1}`; // Texto con el número de semana
-        gridContainer.appendChild(box);
-      }
+  // Render grid
+  for (let i = 0; i < totalSemanas; i++) {
+    const weekNum = i + 1;
+    const box = document.createElement("div");
+    box.className = "box";
+    if (i < weeksPassed) box.classList.add("used");
+    if (notes[`w-${weekNum}`]) box.style.boxShadow = "inset 0 0 0 3px #ffcc00";
+    box.textContent = weekNum;
+    box.dataset.week = weekNum;
+    box.addEventListener("click", () => openModal(weekNum));
+    gridContainer.appendChild(box);
+  }
 
-      // Mostrar la edad actual en semanas y años
-      document.getElementById(
-        "ageInWeeks"
-      ).textContent = `${weeksPassed} semanas`;
-      document.getElementById("ageInYears").textContent = `${Math.floor(
-        weeksPassed / 52
-      )} años`;
+  // Modal handlers
+  const modalTitle = modal.querySelector("#modalTitle");
+  const noteText = modal.querySelector("#noteText");
+  const saveBtn = modal.querySelector("#saveNote");
+  const closeBtn = modal.querySelector("#closeModal");
+  const deleteBtn = modal.querySelector("#deleteNote");
+  let currentWeek = null;
 
-      // Calcular semanas restantes y años restantes
-      const remainingWeeks = totalSemanas - weeksPassed;
-      document.getElementById(
-        "remainingWeeks"
-      ).textContent = `${remainingWeeks} semanas`;
-      document.getElementById("remainingYears").textContent = `${Math.floor(
-        remainingWeeks / 52
-      )} años`;
+  function openModal(week) {
+    currentWeek = week;
+    const start = weekStartDate(birthDate, week);
+    modalTitle.textContent = `Semana ${week} — inicio ${start.toLocaleDateString()} — año ${weekYear(birthDate, week)}`;
+    noteText.value = notes[`w-${week}`]?.text || "";
+    modal.style.display = "flex";
+  }
+  saveBtn.addEventListener("click", () => {
+    notes[`w-${currentWeek}`] = { text: noteText.value, startDate: weekStartDate(birthDate, currentWeek).toISOString(), year: weekYear(birthDate, currentWeek) };
+    saveNotes(notes);
+    location.reload(); // simple refresh to update markers
+  });
+  deleteBtn.addEventListener("click", () => {
+    delete notes[`w-${currentWeek}`];
+    saveNotes(notes);
+    location.reload();
+  });
+  closeBtn.addEventListener("click", () => modal.style.display = "none");
 
-      // Función para cambiar a modo noche
-      function toggleDarkMode() {
-        document.body.classList.toggle("dark-mode");
-      }
-    </script>
-  </body>
-</html>
+  // Mostrar métricas
+  document.getElementById("ageInWeeks").textContent = `${weeksPassed} semanas`;
+  document.getElementById("ageInYears").textContent = `${Math.floor(weeksPassed / 52)} años`;
+  const remainingWeeks = totalSemanas - weeksPassed;
+  document.getElementById("remainingWeeks").textContent = `${remainingWeeks} semanas`;
+  document.getElementById("remainingYears").textContent = `${Math.floor(remainingWeeks / 52)} años`;
+</script>
